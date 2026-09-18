@@ -51,3 +51,11 @@ The app uses `/v2/channel/videos` for the channel dashboard and `/v2/video/detai
 The download route asks for normal URL access, receives the provider's time-limited media URL, selects the best available progressive stream with audio, then proxies that stream back to the browser as a file download.
 
 Large downloads may still be constrained by your hosting platform's serverless function limits because the app currently proxies the media through the server.
+
+## Download provider chain
+
+Channel discovery and the first download attempt use `youtube-media-downloader.p.rapidapi.com`. If that provider's media URL fails (including HTTP 403/404/5xx), `/api/download` falls back to `youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/{videoId}?quality=...`.
+
+Set `YOUTUBE_FAST_RAPIDAPI_KEY` for the fallback provider. `YOUTUBE_FAST_DOWNLOAD_QUALITY` defaults to `18`, and the UI also lets you choose the fallback quality for each download request.
+
+The fallback provider may need time to generate its file URL. The server polls the returned file URL briefly before returning a failure, rather than treating the initial 403/404 as a permanent download error.

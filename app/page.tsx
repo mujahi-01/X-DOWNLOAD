@@ -35,6 +35,7 @@ export default function Home(){
  const [downloadState,setDownloadState]=useState("");
  const [error,setError]=useState("");
  const [directUrl,setDirectUrl]=useState("");
+ const [downloadQuality,setDownloadQuality]=useState("18");
  const [history,setHistory]=useState<HistoryItem[]>([]);
  const [logs,setLogs]=useState<LogItem[]>([]);
  const [detailsOpen,setDetailsOpen]=useState(false);
@@ -75,7 +76,7 @@ export default function Home(){
  async function saveAndDownload(v:Video){
    setDownloadState(v.videoId);setError("");
    try{
-     const r=await fetch(`/api/download?videoId=${encodeURIComponent(v.videoId)}`);
+     const r=await fetch(`/api/download?videoId=${encodeURIComponent(v.videoId)}&quality=${encodeURIComponent(downloadQuality)}&title=${encodeURIComponent(v.title)}`);
      if(!r.ok){const d=await r.json().catch(()=>({}));throw Error(d.error||`Download failed (${r.status})`)}
      const b=await r.blob(),u=URL.createObjectURL(b),a=document.createElement("a");
      a.href=u;a.download=`${v.title.replace(/[<>:"/\\|?*]+/g,"_").slice(0,120)||v.videoId}.mp4`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);
@@ -117,7 +118,7 @@ export default function Home(){
        <div className="stats"><div><b>{fmt(channel.subscribers)}</b><span>Subscribers</span></div><div><b>{fmt(channel.views)}</b><span>Total views</span></div><div><b>{fmt(channel.videos)}</b><span>Videos</span></div></div>
      </section>}
 
-     {videos.length>0&&<section className="toolbar panel"><div><strong>{results.length}</strong> visible <span className="dot">·</span> <strong>{selected.length}</strong> selected</div><div className="toolbarButtons"><button onClick={selected.length===results.length?clearSelection:selectVisible}>{selected.length===results.length?"Clear selection":"Select visible"}</button><button className="downloadAll" onClick={downloadSelected} disabled={!selected.length||!!downloadState}>{downloadState?`Downloading ${downloadState}…`:`Download selected (${selected.length})`}</button><button onClick={copyAll} disabled={!results.length}>Copy URLs</button><button onClick={csv} disabled={!results.length}>CSV</button></div></section>}
+     {videos.length>0&&<section className="toolbar panel"><div><strong>{results.length}</strong> visible <span className="dot">·</span> <strong>{selected.length}</strong> selected</div><div className="toolbarButtons"><label className="control"><span>Fallback quality</span><select value={downloadQuality} onChange={e=>setDownloadQuality(e.target.value)}><option value="18">360p MP4</option><option value="22">720p MP4</option><option value="137">1080p</option><option value="247">720p</option></select></label><button onClick={selected.length===results.length?clearSelection:selectVisible}>{selected.length===results.length?"Clear selection":"Select visible"}</button><button className="downloadAll" onClick={downloadSelected} disabled={!selected.length||!!downloadState}>{downloadState?`Downloading ${downloadState}…`:`Download selected (${selected.length})`}</button><button onClick={copyAll} disabled={!results.length}>Copy URLs</button><button onClick={csv} disabled={!results.length}>CSV</button></div></section>}
 
      <section className="results">
        {loading&&<div className="empty">Loading channel videos…</div>}
@@ -133,7 +134,7 @@ export default function Home(){
      {detailsOpen&&<section className="detailNote panel"><strong>Video details</strong><p>Each card can expose title, publication time, view count, duration, description, live state, thumbnail, direct YouTube URL, and download action. More channel-level metadata is shown above.</p></section>}
    </>}
 
-   {view==="direct"&&<section className="panel directPanel"><span className="eyebrow">DIRECT DOWNLOAD</span><h2>Paste a YouTube video URL</h2><p>Works with watch URLs, youtu.be links, Shorts, and Live URLs.</p><input value={directUrl} onChange={e=>setDirectUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." onKeyDown={e=>e.key==="Enter"&&directDownload()}/><div className="primaryRow"><button className="primary" onClick={directDownload} disabled={!!downloadState}>{downloadState?"Downloading…":"Download video"}</button><button className="secondary" onClick={()=>setDirectUrl("")}>Clear</button></div>{error&&<div className="error">{error}</div>}<div className="tip"><strong>Tip:</strong> download history is stored locally in this browser.</div></section>}
+   {view==="direct"&&<section className="panel directPanel"><span className="eyebrow">DIRECT DOWNLOAD</span><h2>Paste a YouTube video URL</h2><p>Works with watch URLs, youtu.be links, Shorts, and Live URLs.</p><input value={directUrl} onChange={e=>setDirectUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." onKeyDown={e=>e.key==="Enter"&&directDownload()}/><div className="primaryRow"><button className="primary" onClick={directDownload} disabled={!!downloadState}>{downloadState?"Downloading…":"Download video"}</button><button className="secondary" onClick={()=>setDirectUrl("")}>Clear</button><label className="control"><span>Fallback quality</span><select value={downloadQuality} onChange={e=>setDownloadQuality(e.target.value)}><option value="18">360p MP4 (18)</option><option value="22">720p MP4 (22)</option><option value="137">1080p (137)</option><option value="247">720p (247)</option></select></label></div>{error&&<div className="error">{error}</div>}<div className="tip"><strong>Tip:</strong> download history is stored locally in this browser.</div></section>}
 
    {view==="history"&&<section><div className="sectionHead"><div><span className="eyebrow">LOCAL HISTORY</span><h2>Download history</h2></div><button onClick={clearHistory} disabled={!history.length}>Clear history</button></div><div className="list panel">{history.length?history.map(x=><div className="historyRow" key={x.id}><div><strong>{x.title}</strong><span>{new Date(x.time).toLocaleString()} · {x.status}</span>{x.message&&<small>{x.message}</small>}</div><a href={x.url} target="_blank" rel="noreferrer">Open</a></div>):<div className="emptyInner">No downloads yet.</div>}</div></section>}
 
