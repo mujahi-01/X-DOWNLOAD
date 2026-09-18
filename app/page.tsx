@@ -3,7 +3,7 @@ import {useEffect,useMemo,useState} from "react";
 
 type Video={videoId:string;title:string;thumbnail?:string;publishedTimeText?:string;publishedAt?:string;lengthSeconds?:number;views?:number;url:string;author?:string;description?:string;isLive?:boolean};
 type Channel={channelId?:string;title?:string;description?:string;subscribers?:number;subscribersText?:string;views?:number;videos?:number;avatar?:string;banner?:string};
-type SearchResponse={channel?:Channel;videos:Video[];cursorNext?:string;error?:string;diagnostics?:{returnedItems:number;normalizedVideos:number;filter:string;channelId?:string;source?:string;primaryError?:string}};
+type SearchResponse={channel?:Channel;videos:Video[];cursorNext?:string;error?:string;diagnostics?:{returnedItems:number;normalizedVideos:number;filter:string;channelId?:string;provider?:string;usedLargeTokenEndpoint?:boolean}};
 type HistoryItem={id:string;title:string;url:string;status:"success"|"error";time:string;message?:string};
 type LogItem={id:string;time:string;type:"search"|"download"|"system";message:string};
 
@@ -57,14 +57,13 @@ export default function Home(){
    if(!channelUrl.trim()){setError("Enter a YouTube channel URL.");return}
    setLoading(true);setError("");
    try{
-     const p=new URLSearchParams({channel:channelUrl.trim(),filter});
-     if(more&&cursor){p.set("cursor",cursor);if(channelId)p.set("channelId",channelId)}
-     const r=await fetch(`/api/videos?${p}`);const d:SearchResponse=await r.json();
+     const payload:{channel:string;filter:string;cursor?:string;channelId?:string}={channel:channelUrl.trim(),filter};
+     if(more&&cursor){payload.cursor=cursor;if(channelId)payload.channelId=channelId}
+     const r=await fetch("/api/videos",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});const d:SearchResponse=await r.json();
      if(!r.ok)throw Error(d.error||"Channel request failed.");
      setChannel(d.channel||{});setChannelId(d.channel?.channelId||d.diagnostics?.channelId||channelId);
      setVideos(v=>more?[...v,...(d.videos||[])]:d.videos||[]);setCursor(d.cursorNext);setSelected([]);setView("channel");
-     addLog("search",`Loaded ${d.videos?.length||0} videos from ${d.channel?.title||channelUrl.trim()} (${d.diagnostics?.returnedItems??0} API items, source: ${d.diagnostics?.source||"unknown"}).`);
-     if(d.diagnostics?.primaryError)addLog("search",`Primary provider issue: ${d.diagnostics.primaryError}`);
+     addLog("search",`Loaded ${d.videos?.length||0} videos from ${d.channel?.title||channelUrl.trim()} (${d.diagnostics?.returnedItems??0} API items).`);
      if(!d.videos?.length)addLog("search","Search returned no normalized videos. The server diagnostics were: "+JSON.stringify(d.diagnostics||{}));
    }catch(e){const msg=e instanceof Error?e.message:"Search failed";setError(msg);addLog("search",msg)}finally{setLoading(false)}
  }
@@ -103,7 +102,7 @@ export default function Home(){
  function clearLogs(){setLogs([]);localStorage.removeItem("ycf-logs")}
 
  return <main className="shell">
-   <header className="top"><div><span className="badge">YOUTUBE VIDEO WORKSPACE</span><h1>Channel → dashboard → download.</h1><p>Find a channel’s videos, choose exactly what you need, and queue downloads. Advanced filters stay out of the way.</p></div><nav className="nav">{[["channel","Channel"],["direct","Video URL"],["history","History"],["logs","Error log"]].map(([k,l])=><button key={k} className={view===k?"navActive":""} onClick={()=>{setView(k as typeof view);setError("")}}>{l}{k==="history"&&history.length?` ${history.length}`:""}</button>)}</nav></header>
+   <header className="top"><div><span className="badge">X-DOWNLOAD · RAPIDAPI MEDIA</span><h1>Channel → dashboard → download.</h1><p>Find a channel’s videos, choose exactly what you need, and queue downloads. Advanced filters stay out of the way.</p></div><nav className="nav">{[["channel","Channel"],["direct","Video URL"],["history","History"],["logs","Error log"]].map(([k,l])=><button key={k} className={view===k?"navActive":""} onClick={()=>{setView(k as typeof view);setError("")}}>{l}{k==="history"&&history.length?` ${history.length}`:""}</button>)}</nav></header>
 
    {view==="channel"&&<>
      <section className="panel searchPanel">
@@ -140,6 +139,6 @@ export default function Home(){
 
    {view==="logs"&&<section><div className="sectionHead"><div><span className="eyebrow">DIAGNOSTICS</span><h2>Error & issue log</h2></div><button onClick={clearLogs} disabled={!logs.length}>Clear log</button></div><div className="list panel">{logs.length?logs.map(x=><div className={`logRow ${x.type}`} key={x.id}><div><span>{x.type}</span><strong>{x.message}</strong></div><time>{new Date(x.time).toLocaleString()}</time></div>):<div className="emptyInner">No issues logged.</div>}</div></section>}
 
-   <footer>API keys remain server-side. Youtube138 is used first; the optional YouTube Data API fallback handles channel video listing when the primary provider returns nothing. Browser history/logs are local to this device.</footer>
+   <footer>YouTube Media Downloader runs server-side through RapidAPI. Browser history/logs are local to this device.</footer>
  </main>
 }

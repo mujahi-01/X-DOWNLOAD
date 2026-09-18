@@ -1,17 +1,31 @@
-# YouTube Channel Finder — temporary test build
+# X-DOWNLOAD — YouTube Channel Downloader
 
-Next.js 15 + TypeScript + Youtube138/RapidAPI.
+Next.js 15 + TypeScript + RapidAPI YouTube Media Downloader.
+
+## Provider
+
+This build uses the RapidAPI **YouTube Media Downloader** provider at `youtube-media-downloader.p.rapidapi.com`. The provider exposes channel listing at `/v2/channel/videos` and full video details/download URLs at `/v2/video/details`. It also supports subtitle conversion through `/v2/video/subtitles`.
 
 ## Features
 
-- Channel URL search
+- Channel URL search (`@handle`, `/channel/UC...`, `/user/...`, `/c/...`)
 - Videos / Shorts / Live streams
-- Keyword search
-- Cursor pagination
-- Copy URLs
-- CSV export
-- Light theme
-- Download button
+- Provider pagination with `nextToken`
+- Automatic handling for unusually large pagination tokens through `/v2/misc/list-items`
+- Keyword/date filtering of loaded videos
+- Copy URLs and CSV export
+- Direct video URL download
+- Download selection prefers a progressive video stream that already contains audio
+
+## Environment
+
+Create `.env.local` locally or configure the same variable in Vercel: 
+
+```env
+YOUTUBE_MEDIA_RAPIDAPI_KEY=your_rapidapi_key
+```
+
+Do not commit the real RapidAPI key to the repository.
 
 ## Start
 
@@ -22,24 +36,18 @@ npm run dev
 
 Then open `http://localhost:3000`.
 
-## API keys
+## Why the provider responses look different
 
-The primary Youtube138/RapidAPI key is read only from the server-side `RAPIDAPI_KEY` environment variable. Never commit a real key to Git.
+The examples you supplied are from different endpoints in the same API:
 
-For reliability, channel video listing now has an optional fallback to the official YouTube Data API v3. Set `YOUTUBE_DATA_API_KEY` on the server. The fallback uses the channel uploads playlist and preserves cursor pagination. Downloads continue to use Youtube138 because the YouTube Data API does not provide downloadable media stream URLs.
+- `/v2/video/details` returns one video and can include `videos`, `audios`, `subtitles`, and `related`.
+- `/v2/video/subtitles` returns subtitle data in the format requested (for example JSON/SRT/VTT/XML depending on parameters).
+- `/v2/channel/videos` returns a list under `items` plus a `nextToken` for pagination.
 
-### Vercel
+The app uses `/v2/channel/videos` for the channel dashboard and `/v2/video/details` for the actual download stream.
 
-1. Create a new RapidAPI key and revoke/rotate any key that was previously committed to the repository.
-2. In Vercel, open **Project Settings → Environment Variables**.
-3. Add `RAPIDAPI_KEY` with the new key for the environments you deploy to.
-4. Optionally add `YOUTUBE_DATA_API_KEY` for the channel-video fallback.
-5. Redeploy the project.
+## Download behavior
 
-For local development, copy `.env.example` to `.env.local` and put the keys there.
+The download route asks for normal URL access, receives the provider's time-limited media URL, selects the best available progressive stream with audio, then proxies that stream back to the browser as a file download.
 
-## Download
-
-The download route calls Youtube138 `/video/streaming-data/`, prefers a progressive MP4 containing video + audio, and proxies it back with `Content-Disposition: attachment`.
-
-Large files may be constrained by Vercel/serverless function limits; this is intended for temporary testing.
+Large downloads may still be constrained by your hosting platform's serverless function limits because the app currently proxies the media through the server.
